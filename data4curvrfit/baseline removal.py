@@ -1,13 +1,12 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.stats import norm
-import os
-import glob
-from scipy import interpolate
-from scipy.optimize import least_squares
 from scipy.sparse import csc_matrix, eye, diags
 from scipy.sparse.linalg import spsolve
+from scipy.stats import norm
+from scipy import interpolate
+import matplotlib.pyplot as plt
+import os
+from scipy.signal import savgol_filter
 
 
 def WhittakerSmooth(x, w, lambda_, differences=1):
@@ -72,66 +71,49 @@ def LSE(x1, x2):
     return np.sqrt(ss)
 
 
-# First derivative of vector using 2-point central difference.
-def deriv(darray):
-    length = len(darray)
-    der = np.zeros(length)
-    for i in range(length):
-        if i == 0:
-            der[i] = darray[i+1] - darray[i]
-        elif i == length - 1:
-            der[i] = darray[i] - darray[i-1]
-        else:
-            der[i] = (darray[i+1] - darray[i-1]) / 2
-    return der
-
-#darray input is derivative of spectrum
-def peakfind(darray, slopethresh, intensthresh):
-
-
-
-# load data and interpolation
-# path1 = r'D:\Projects\Algorithm Study\CurveFit'
-# path2 = r'D:\Projects\Algorithm Study\CurveFit\data4curvrfit'
-# os.chdir(path2)
-# df1 = pd.read_csv('sample0.csv')
-# Column1 = df1['RamanShift']
-# Column2 = df1['Processed']
-# # plt.plot(Column1, Column2, label='original')
-# RS_interp = np.arange(150, 2500, 1)
-# tck = interpolate.splrep(Column1, Column2, s=0)
-# intensity_interp = interpolate.splev(RS_interp, tck, der=0)
-# # plt.plot(RS_interp, intensity_interp, label='interpolation')
-# x = RS_interp
-# y = intensity_interp
-
 x = np.arange(0, 1000, 1)
 g1 = norm(loc=400, scale=50.0)  # generate three gaussian as a signal
 g2 = norm(loc=500, scale=25.0)
-# g3 = norm(loc=750, scale=5.0)
-signal1 = g1.pdf(x) * 50
-signal2 = g2.pdf(x) * 8
-signal = signal1 + signal2
+g3 = norm(loc=750, scale=5.0)
+signal = g1.pdf(x) + g2.pdf(x) + g3.pdf(x)
 baseline1 = 5e-4 * x + 0.2  # linear baseline
 baseline2 = 0.2 * np.sin(np.pi * x / x.max())  # sinusoidal baseline
 baseline = baseline2
 noise = np.random.random(x.shape[0]) / 500
 y = signal + baseline + noise
-plt.plot(x, y, 'r', label='original')
+# opt_lb = 1
+# opt_diff = LSE(baseline, airPLS(y, 1))
+# for lb in range(100):
+#     diff = LSE(baseline, airPLS(y, lb))
+#     if diff < opt_diff:
+#         opt_lb = lb
+#         opt_diff = diff
+# print('Optimized lambda for baseline removal is ', opt_lb)
+# baseline_calc = airPLS(y, opt_lb)
+# y_2 = y - baseline_calc  # with baseline removed
+# plt.plot(x, y, '-k', label='original')
+# # plt.plot(x, y_2, '-r', label='corrected')
+# plt.plot(x, baseline, '-b', label='original baseline')
+# plt.plot(x, baseline_calc, '.r', label='calculated baseline')
+# plt.title('Sinusoidal baseline')
 
-# baseline removal
-baseline_calc = airPLS(y, 10)
-y2 = y - baseline_calc
-plt.plot(x, baseline_calc, 'y', label='baseline')
-plt.plot(x, y2, 'k', label='corrected')
-# peak finding
-y_deriv = deriv(y)
-y2_deriv = deriv(y2)
-# plt.plot(x, y_deriv, 'c', label='derivative on original')
-# plt.plot(x, y2_deriv, 'r', label='derivative on corrected')
-# deconvolution
+path1 = r'D:\Projects\Algorithm Study\CurveFit'
+path2 = r'D:\Projects\Algorithm Study\CurveFit\data4curvrfit'
 
-# peak plotting
-plt.title('Peak Analysis')
+os.chdir(path2)
+df1 = pd.read_csv('sample0.csv')
+Column1 = df1['RamanShift']
+Column2 = df1['Processed']
+# plt.plot(Column1, Column2, label='original')
+RS_interp = np.arange(150, 2500, 1)
+tck = interpolate.splrep(Column1, Column2, s=0)
+intensity_interp = interpolate.splev(RS_interp, tck, der=0)
+plt.plot(RS_interp, intensity_interp, label='interpolation')
+baseline = airPLS(intensity_interp, 50)
+c3 = intensity_interp - baseline
+plt.plot(RS_interp, baseline, label='Baseline')
+plt.plot(RS_interp, c3, label='Corrected')
+
 plt.legend()
 plt.show()
+print('Done!')
