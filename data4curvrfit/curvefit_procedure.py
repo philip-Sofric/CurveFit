@@ -1,3 +1,7 @@
+# assume all input spectrum has no bad pixel data point
+# assume no adjacent three pixels having the same intensity - saturation, while two pixels of same height is possible
+
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,6 +12,7 @@ from scipy import interpolate
 from scipy.optimize import least_squares
 from scipy.sparse import csc_matrix, eye, diags
 from scipy.sparse.linalg import spsolve
+from scipy.signal import savgol_filter as sg
 
 
 def WhittakerSmooth(x, w, lambda_, differences=1):
@@ -68,7 +73,7 @@ def LSE(x1, x2):
     length = len(x1)
     ss = 0
     for i in range(length):
-        ss += (x1[i] - x2[i])**2
+        ss += (x1[i] - x2[i]) ** 2
     return np.sqrt(ss)
 
 
@@ -78,16 +83,17 @@ def deriv(darray):
     der = np.zeros(length)
     for i in range(length):
         if i == 0:
-            der[i] = darray[i+1] - darray[i]
+            der[i] = darray[i + 1] - darray[i]
         elif i == length - 1:
-            der[i] = darray[i] - darray[i-1]
+            der[i] = darray[i] - darray[i - 1]
         else:
-            der[i] = (darray[i+1] - darray[i-1]) / 2
+            der[i] = (darray[i + 1] - darray[i - 1]) / 2
     return der
 
-#darray input is derivative of spectrum
-def peakfind(darray, slopethresh, intensthresh):
 
+# darray input is derivative of spectrum
+def peakfind(darray, slopethresh, intensthresh):
+    return
 
 
 # load data and interpolation
@@ -117,21 +123,31 @@ baseline2 = 0.2 * np.sin(np.pi * x / x.max())  # sinusoidal baseline
 baseline = baseline2
 noise = np.random.random(x.shape[0]) / 500
 y = signal + baseline + noise
-plt.plot(x, y, 'r', label='original')
-
+# plt.plot(x, y, 'r', label='original')
 # baseline removal
 baseline_calc = airPLS(y, 10)
-y2 = y - baseline_calc
-plt.plot(x, baseline_calc, 'y', label='baseline')
-plt.plot(x, y2, 'k', label='corrected')
-# peak finding
+y_baselineCorr = y - baseline_calc
+# plt.plot(x, baseline_calc, 'y', label='baseline')
+# plt.plot(x, y_baselineCorr, 'k', label='corrected')
+# derivative
 y_deriv = deriv(y)
-y2_deriv = deriv(y2)
+y_baselineCorr_deriv = deriv(y_baselineCorr)
 # plt.plot(x, y_deriv, 'c', label='derivative on original')
-# plt.plot(x, y2_deriv, 'r', label='derivative on corrected')
+# plt.plot(x, y_baselineCorr_deriv, 'r', label='derivative on corrected')
+# smooth
+y_baselineCorr_smooth = sg(y_baselineCorr, 51, 3)
+plt.plot(x, y_baselineCorr_smooth, 'c', label='smooth on baseline corrected')
+df_smooth = pd.DataFrame({'x': x, 'y': y_baselineCorr_smooth})
+df_smooth.to_csv('smooth on baseline corrected.csv', index=None)
+y_baselineCorr_smooth_deriv = deriv(y_baselineCorr_smooth)
+plt.plot(x, y_baselineCorr_smooth_deriv, 'y', label='derivative on smooth baseline corrected')
+df2 = pd.DataFrame({'x': x, 'y': y_baselineCorr_smooth_deriv})
+df2.to_csv('derivative on smooth baseline corrected.csv', index=None)
+# peak detection
 # deconvolution
 
 # peak plotting
+print('Done!')
 plt.title('Peak Analysis')
 plt.legend()
 plt.show()
